@@ -1,6 +1,6 @@
 # dockerhub
 
-[![go.dev](https://pkg.go.dev/badge/github.com/BarnabyShearer/dockerhub/)](https://pkg.go.dev/github.com/BarnabyShearer/dockerhub/v3)
+[![go.dev](https://pkg.go.dev/badge/github.com/BarnabyShearer/dockerhub/)](https://pkg.go.dev/github.com/BarnabyShearer/dockerhub/v2)
 
 Golang API client.
 
