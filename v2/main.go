@@ -59,8 +59,10 @@ type CreatePersonalAccessToken struct {
 }
 
 type CreatePersonalAccessTokenResponse struct {
-	UUID  string `json:"uuid"`
-	Token string `json:"token"`
+	UUID       string   `json:"uuid"`
+	Token      string   `json:"token"`
+	TokenLabel string   `json:"token_label"`
+	Scopes     []string `json:"scopes"`
 }
 
 func (c *Client) CreateRepository(ctx context.Context, createRepository Repository) (Repository, error) {
@@ -104,6 +106,13 @@ func (c *Client) CreatePersonalAccessToken(ctx context.Context, createPersonalAc
 	if err != nil {
 		return personalAccessToken, err
 	}
+	return personalAccessToken, err
+}
+
+// Returned token will always be blank.
+func (c *Client) GetPersonalAccessToken(ctx context.Context, uuid string) (CreatePersonalAccessTokenResponse, error) {
+	personalAccessToken := CreatePersonalAccessTokenResponse{}
+	err := c.sendRequest(ctx, "GET", fmt.Sprintf("/access-tokens/%s", uuid), nil, &personalAccessToken)
 	return personalAccessToken, err
 }
 
