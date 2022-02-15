@@ -90,21 +90,6 @@ type RepositoryGroup struct {
 
 // DELETE /v2/orgs/organisation_name/groups/test/members/username/
 
-// Associate group with repository:
-
-// GET https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/
-// GET https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/123
-
-// POST https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/
-// BODY: {"group_id":123,"groupid":123,"group_name":"example","groupname":"example","permission":"write"}
-// permission: "read" / "write" / "admin"
-
-// DELETE https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/123/
-
-// PATCH https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/123/
-// BODY: {"group_id":123,"group_name":"example","groupname":"example","permission":"admin"}
-
-
 // Group
 //------
 
@@ -126,7 +111,7 @@ func (c *Client) CreateGroup(ctx context.Context, organisation string, createGro
 }
 
 // Edit a group / team in organization
-// EDIT /v2/orgs/organisation_name/groups/group_name/
+// PATCH /v2/orgs/organisation_name/groups/group_name/
 // BODY: {"name":"test","description":"x"}
 // RESPONSE: {"id": 123, "name": "test", "description": "x"}
 func (c *Client) UpdateGroup(ctx context.Context, organisation string, id string, updateGroup Group) (Group, error) {
@@ -155,6 +140,56 @@ func (c *Client) GetGroup(ctx context.Context, organisation string, id string) (
 // DELETE /v2/orgs/organization_name/groups/group_name/
 func (c *Client) DeleteGroup(ctx context.Context, organisation string, id string) error {
 	return c.sendRequest(ctx, "DELETE", fmt.Sprintf("/orgs/%s/groups/%s/", organisation, id), nil, nil)
+}
+
+// Group-Repository Association
+//-----------------------------
+
+// Create a repository --> group association in organization
+// POST https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/
+// BODY: {"group_id":123,"groupid":123,"group_name":"example","groupname":"example","permission":"write"}
+// permission: "read" / "write" / "admin"
+func (c *Client) CreateRepositoryGroup(ctx context.Context, repository string, createRepositoryGroup RepositoryGroup) (RepositoryGroup, error) {
+	repository_group := RepositoryGroup{}
+	createRepositoryGroupJson, err := json.Marshal(createRepositoryGroup)
+	if err != nil {
+		return repository_group, err
+	}
+	err = c.sendRequest(ctx, "POST", fmt.Sprintf("/repositories/%s/groups", repository), createRepositoryGroupJson, &repository_group)
+	if err != nil {
+		return repository_group, err
+	}
+	return repository_group, err
+}
+
+// Edit a repository --> group association in organization
+// PATCH /v2/repositories/organisation_name/example-fixture-loader/groups/123/
+// BODY: {"group_id":123,"group_name":"example","groupname":"example","permission":"admin"}
+func (c *Client) UpdateRepositoryGroup(ctx context.Context, repository string, id string, updateRepositoryGroup RepositoryGroup) (RepositoryGroup, error) {
+	repository_group := RepositoryGroup{}
+	updateRepositoryGroupJson, err := json.Marshal(updateRepositoryGroup)
+	if err != nil {
+		return repository_group, err
+	}
+	err = c.sendRequest(ctx, "PATCH", fmt.Sprintf("/repositories/%s/groups/%s/", repository, id), updateRepositoryGroupJson, &repository_group)
+	if err != nil {
+		return repository_group, err
+	}
+	return repository_group, err
+}
+
+// Get a repository --> group association in organization
+// GET /v2/repositories/organisation_name/example-fixture-loader/groups/123/
+func (c *Client) GetRepositoryGroup(ctx context.Context, repository string, id string) (RepositoryGroup, error) {
+	repository_group := RepositoryGroup{}
+    err := c.sendRequest(ctx, "GET", fmt.Sprintf("/repositories/%s/groups/%s/", repository, id), nil, &repository_group)
+	return repository_group, err
+}
+
+// Delete a repository --> group association in organization
+// DELETE /v2/repositories/organisation_name/example-fixture-loader/groups/123/
+func (c *Client) DeleteRepositoryGroup(ctx context.Context, repository string, id string) error {
+	return c.sendRequest(ctx, "DELETE", fmt.Sprintf("/repositories/%s/groups/%s/", repository, id), nil, nil)
 }
 
 // Repository
