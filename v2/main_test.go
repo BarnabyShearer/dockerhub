@@ -32,6 +32,9 @@ func TestReadGroup(t *testing.T) {
     if group.Name != "owners" {
         t.Fatalf(`Name wrong, got %s, expected %s`, group.Name, group_id)
     }
+    if group.Id != 51673 {
+        t.Fatalf(`Id wrong, got %d, expected %d`, group.Id, 51673)
+    }
 }
 
 func TestReadGroupFailure(t *testing.T) {
