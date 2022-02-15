@@ -65,6 +65,99 @@ type CreatePersonalAccessTokenResponse struct {
 	Scopes     []string `json:"scopes"`
 }
 
+type Group struct {
+    Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type GroupMember struct {
+    Username    string `json:"username"`
+    FullName    string `json:"full_name"`
+}
+
+type RepositoryGroup struct {
+    GroupId     int `json:"group_id"`
+    Permission  string `json:"permission"`
+}
+
+// Associate members to group:
+// GET /v2/orgs/organisation_name/groups/NAME/members/
+// RESPONSE: [{"username": "username", "full_name": "John Smith"}]
+
+// POST /v2/orgs/organisation_name/groups/NAME/members/
+// BODY: {"member":"username"}
+
+// DELETE /v2/orgs/organisation_name/groups/test/members/username/
+
+// Associate group with repository:
+
+// GET https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/
+// GET https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/123
+
+// POST https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/
+// BODY: {"group_id":123,"groupid":123,"group_name":"example","groupname":"example","permission":"write"}
+// permission: "read" / "write" / "admin"
+
+// DELETE https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/123/
+
+// PATCH https://hub.docker.com/v2/repositories/organisation_name/example-fixture-loader/groups/123/
+// BODY: {"group_id":123,"group_name":"example","groupname":"example","permission":"admin"}
+
+
+// Group
+//------
+
+// Create a group / team in organization
+// POST https://hub.docker.com/v2/orgs/organisation_name/groups/
+// BODY: {"name":"test"}
+// RESPONSE: {"id":123,"name":"test","description":""}
+func (c *Client) CreateGroup(ctx context.Context, organisation string, createGroup Group) (Group, error) {
+	group := Group{}
+	createGroupJson, err := json.Marshal(createGroup)
+	if err != nil {
+		return group, err
+	}
+	err = c.sendRequest(ctx, "POST", fmt.Sprintf("/orgs/%s/groups", organisation), createGroupJson, &group)
+	if err != nil {
+		return group, err
+	}
+	return group, err
+}
+
+// Edit a group / team in organization
+// EDIT /v2/orgs/organisation_name/groups/group_name/
+// BODY: {"name":"test","description":"x"}
+// RESPONSE: {"id": 123, "name": "test", "description": "x"}
+func (c *Client) UpdateGroup(ctx context.Context, organisation string, id string, updateGroup Group) (Group, error) {
+	group := Group{}
+	updateGroupJson, err := json.Marshal(updateGroup)
+	if err != nil {
+		return group, err
+	}
+	err = c.sendRequest(ctx, "PATCH", fmt.Sprintf("/orgs/%s/groups/%s/", organisation, id), updateGroupJson, &group)
+	if err != nil {
+		return group, err
+	}
+	return group, err
+}
+
+// Read a group / team in organization
+// GET /v2/orgs/organization_name/groups/group_name/
+// RESPONSE: {"id": 123, "name": "test", "description": "x"}
+func (c *Client) GetGroup(ctx context.Context, organisation string, id string) (Group, error) {
+	group := Group{}
+    err := c.sendRequest(ctx, "GET", fmt.Sprintf("/orgs/%s/groups/%s/", organisation, id), nil, &group)
+	return group, err
+}
+
+// Delete a group in organization
+// DELETE /v2/orgs/organization_name/groups/group_name/
+func (c *Client) DeleteGroup(ctx context.Context, organisation string, id string) error {
+	return c.sendRequest(ctx, "DELETE", fmt.Sprintf("/orgs/%s/groups/%s/", organisation, id), nil, nil)
+}
+
+// Repository
+//-----------
 func (c *Client) CreateRepository(ctx context.Context, createRepository Repository) (Repository, error) {
 	repository := Repository{}
 	createRepositoryJson, err := json.Marshal(createRepository)
@@ -79,11 +172,11 @@ func (c *Client) CreateRepository(ctx context.Context, createRepository Reposito
 }
 
 func (c *Client) UpdateRepository(ctx context.Context, id string, updateRepository Repository) error {
-	updateRepositoryJSON, err := json.Marshal(updateRepository)
+	updateRepositoryJson, err := json.Marshal(updateRepository)
 	if err != nil {
 		return err
 	}
-	return c.sendRequest(ctx, "PATCH", fmt.Sprintf("/repositories/%s/", id), updateRepositoryJSON, nil)
+	return c.sendRequest(ctx, "PATCH", fmt.Sprintf("/repositories/%s/", id), updateRepositoryJson, nil)
 }
 
 func (c *Client) GetRepository(ctx context.Context, id string) (Repository, error) {
@@ -96,6 +189,8 @@ func (c *Client) DeleteRepository(ctx context.Context, id string) error {
 	return c.sendRequest(ctx, "DELETE", fmt.Sprintf("/repositories/%s/", id), nil, nil)
 }
 
+// Personal Access Token
+//----------------------
 func (c *Client) CreatePersonalAccessToken(ctx context.Context, createPersonalAccessToken CreatePersonalAccessToken) (CreatePersonalAccessTokenResponse, error) {
 	personalAccessToken := CreatePersonalAccessTokenResponse{}
 	createRepositoryJson, err := json.Marshal(createPersonalAccessToken)
@@ -109,7 +204,7 @@ func (c *Client) CreatePersonalAccessToken(ctx context.Context, createPersonalAc
 	return personalAccessToken, err
 }
 
-// Returned token will always be blank.
+// Note: Returned token will always be blank.
 func (c *Client) GetPersonalAccessToken(ctx context.Context, uuid string) (CreatePersonalAccessTokenResponse, error) {
 	personalAccessToken := CreatePersonalAccessTokenResponse{}
 	err := c.sendRequest(ctx, "GET", fmt.Sprintf("/access-tokens/%s", uuid), nil, &personalAccessToken)
@@ -120,6 +215,8 @@ func (c *Client) DeletePersonalAccessToken(ctx context.Context, uuid string) err
 	return c.sendRequest(ctx, "DELETE", fmt.Sprintf("/access-tokens/%s", uuid), nil, nil)
 }
 
+// Helpers
+//--------
 func (c *Client) sendRequest(ctx context.Context, method string, url string, body []byte, result interface{}) error {
 
 	authJson, err := json.Marshal(c.auth)
