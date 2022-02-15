@@ -1,3 +1,3 @@
-module github.com/BarnabyShearer/dockerhub/v2
+module github.com/magentaaps/dockerhub/v2
 
 go 1.16
