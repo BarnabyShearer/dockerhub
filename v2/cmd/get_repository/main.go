@@ -8,7 +8,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/magentaaps/dockerhub/v2"
+	"github.com/magenta-aps/dockerhub/v2"
 )
 
 var nameFlag = flag.String("name", "", "Name of the repository.")
