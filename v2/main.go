@@ -155,7 +155,7 @@ func (c *Client) CreateRepositoryGroup(ctx context.Context, repository string, c
 	if err != nil {
 		return repository_group, err
 	}
-	err = c.sendRequest(ctx, "POST", fmt.Sprintf("/repositories/%s/groups", repository), createRepositoryGroupJson, &repository_group)
+	err = c.sendRequest(ctx, "POST", fmt.Sprintf("/repositories/%s/groups/", repository), createRepositoryGroupJson, &repository_group)
 	if err != nil {
 		return repository_group, err
 	}
