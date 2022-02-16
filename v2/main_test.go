@@ -12,12 +12,12 @@ import (
 func TestReadRepository(t *testing.T) {
     name := "magentaaps/lora"
 	client := NewClient(os.Getenv("DOCKER_USERNAME"), os.Getenv("DOCKER_PASSWORD"))
-	respository, err := client.GetRepository(context.Background(), name)
+	repository, err := client.GetRepository(context.Background(), name)
 	if err != nil {
         t.Fatalf(`Got error: %v`, err)
 	}
-    if respository.Name != "lora" {
-        t.Fatalf(`Name wrong, got %s, expected %s`, respository.Name, name)
+    if repository.Name != "lora" {
+        t.Fatalf(`Name wrong, got %s, expected %s`, repository.Name, name)
     }
 }
 
