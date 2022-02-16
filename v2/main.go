@@ -78,6 +78,9 @@ type GroupMember struct {
 
 type RepositoryGroup struct {
     GroupId     int `json:"group_id"`
+    GroupId2    int `json:"groupid"`
+    GroupName   string `json:"group_name"`
+    GroupName2  string `json:"groupname"`
     Permission  string `json:"permission"`
 }
 
