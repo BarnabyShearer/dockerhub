@@ -66,22 +66,22 @@ type CreatePersonalAccessTokenResponse struct {
 }
 
 type Group struct {
-    Id          int    `json:"id,omitempty"`
-    Name        string `json:"name"`
+	Id          int    `json:"id,omitempty"`
+	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
 type GroupMember struct {
-    Username    string `json:"username"`
-    FullName    string `json:"full_name"`
+	Username string `json:"username"`
+	FullName string `json:"full_name"`
 }
 
 type RepositoryGroup struct {
-    GroupId     int `json:"group_id"`
-    GroupId2    int `json:"groupid"`
-    GroupName   string `json:"group_name"`
-    GroupName2  string `json:"groupname"`
-    Permission  string `json:"permission"`
+	GroupId    int    `json:"group_id"`
+	GroupId2   int    `json:"groupid"`
+	GroupName  string `json:"group_name"`
+	GroupName2 string `json:"groupname"`
+	Permission string `json:"permission"`
 }
 
 // Associate members to group:
@@ -135,7 +135,7 @@ func (c *Client) UpdateGroup(ctx context.Context, organisation string, id string
 // RESPONSE: {"id": 123, "name": "test", "description": "x"}
 func (c *Client) GetGroup(ctx context.Context, organisation string, id string) (Group, error) {
 	group := Group{}
-    err := c.sendRequest(ctx, "GET", fmt.Sprintf("/orgs/%s/groups/%s/", organisation, id), nil, &group)
+	err := c.sendRequest(ctx, "GET", fmt.Sprintf("/orgs/%s/groups/%s/", organisation, id), nil, &group)
 	return group, err
 }
 
@@ -185,7 +185,7 @@ func (c *Client) UpdateRepositoryGroup(ctx context.Context, repository string, i
 // GET /v2/repositories/organisation_name/example-fixture-loader/groups/123/
 func (c *Client) GetRepositoryGroup(ctx context.Context, repository string, id string) (RepositoryGroup, error) {
 	repository_group := RepositoryGroup{}
-    err := c.sendRequest(ctx, "GET", fmt.Sprintf("/repositories/%s/groups/%s/", repository, id), nil, &repository_group)
+	err := c.sendRequest(ctx, "GET", fmt.Sprintf("/repositories/%s/groups/%s/", repository, id), nil, &repository_group)
 	return repository_group, err
 }
 
@@ -196,7 +196,7 @@ func (c *Client) DeleteRepositoryGroup(ctx context.Context, repository string, i
 }
 
 // Repository
-//-----------
+// -----------
 func (c *Client) CreateRepository(ctx context.Context, createRepository Repository) (Repository, error) {
 	repository := Repository{}
 	createRepositoryJson, err := json.Marshal(createRepository)
@@ -229,7 +229,7 @@ func (c *Client) DeleteRepository(ctx context.Context, id string) error {
 }
 
 // Personal Access Token
-//----------------------
+// ----------------------
 func (c *Client) CreatePersonalAccessToken(ctx context.Context, createPersonalAccessToken CreatePersonalAccessToken) (CreatePersonalAccessTokenResponse, error) {
 	personalAccessToken := CreatePersonalAccessTokenResponse{}
 	createRepositoryJson, err := json.Marshal(createPersonalAccessToken)
@@ -255,7 +255,7 @@ func (c *Client) DeletePersonalAccessToken(ctx context.Context, uuid string) err
 }
 
 // Helpers
-//--------
+// --------
 func (c *Client) sendRequest(ctx context.Context, method string, url string, body []byte, result interface{}) error {
 
 	authJson, err := json.Marshal(c.auth)
