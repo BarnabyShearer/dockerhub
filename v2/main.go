@@ -53,6 +53,10 @@ type Repository struct {
 	FullDescription string `json:"full_description,omitempty"`
 }
 
+type RepositoryPrivacy struct {
+	Private bool `json:"is_private"`
+}
+
 type CreatePersonalAccessToken struct {
 	TokenLabel string   `json:"token_label"`
 	Scopes     []string `json:"scopes"`
@@ -215,7 +219,21 @@ func (c *Client) UpdateRepository(ctx context.Context, id string, updateReposito
 	if err != nil {
 		return err
 	}
+
+	err = c.UpdateRepositoryPrivacy(ctx, id, RepositoryPrivacy{Private: updateRepository.Private})
+	if err != nil {
+		return err
+	}
+
 	return c.sendRequest(ctx, "PATCH", fmt.Sprintf("/repositories/%s/", id), updateRepositoryJson, nil)
+}
+
+func (c *Client) UpdateRepositoryPrivacy(ctx context.Context, id string, updateRepositoryPrivacy RepositoryPrivacy) error {
+	updateRepositoryPrivacyJson, err := json.Marshal(updateRepositoryPrivacy)
+	if err != nil {
+		return err
+	}
+	return c.sendRequest(ctx, "POST", fmt.Sprintf("/repositories/%s/privacy", id), updateRepositoryPrivacyJson, nil)
 }
 
 func (c *Client) GetRepository(ctx context.Context, id string) (Repository, error) {
