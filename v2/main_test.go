@@ -54,3 +54,33 @@ func TestReadGroupFailure(t *testing.T) {
 		t.Fatalf(`Wrong error, got %s, expected %s`, string_err, expected_err)
 	}
 }
+
+func TestRepositoryPrivacy(t *testing.T) {
+	organization_name := strings.Split(os.Getenv("DOCKER_TEST_REPO"), "/")[0]
+	repository_name := strings.Split(os.Getenv("DOCKER_TEST_REPO"), "/")[1]
+	client := NewClient(os.Getenv("DOCKER_USERNAME"), os.Getenv("DOCKER_PASSWORD"))
+	repo := Repository{
+		Private:   true,
+		Name:      repository_name,
+		Namespace: organization_name,
+	}
+	created, err := client.CreateRepository(context.Background(), repo)
+	if err != nil {
+		t.Fatalf(`Got error: %v`, err)
+	}
+	if created.Private != true {
+		t.Fatalf(`Repository not private, got %t, expected %t`, created.Private, true)
+	}
+	repo.Private = false
+	err = client.UpdateRepository(context.Background(), fmt.Sprintf("%s/%s", created.Namespace, created.Name), repo)
+	if err != nil {
+		t.Fatalf(`Got error: %v`, err)
+	}
+	updated, err := client.GetRepository(context.Background(), fmt.Sprintf("%s/%s", created.Namespace, created.Name))
+	if err != nil {
+		t.Fatalf(`Got error: %v`, err)
+	}
+	if updated.Private != false {
+		t.Fatalf(`Repository not private, got %t, expected %t`, updated.Private, false)
+	}
+}
