@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -24,10 +25,18 @@ type Token struct {
 	Token string `json:"token"`
 }
 
+// RateLimit holds the rate limiting information from Docker Hub API
+type RateLimit struct {
+	Limit     int   `json:"limit"`
+	Remaining int   `json:"remaining"`
+	Reset     int64 `json:"reset"`
+}
+
 type Client struct {
 	BaseURL    string
 	auth       Auth
 	HTTPClient *http.Client
+	rateLimit  *RateLimit // Add rate limit tracking
 }
 
 // Create the API client, providing the authentication.
@@ -41,6 +50,7 @@ func NewClient(username string, password string) *Client {
 		HTTPClient: &http.Client{
 			Timeout: time.Minute,
 		},
+		rateLimit: nil,
 	}
 }
 
@@ -254,17 +264,122 @@ func (c *Client) DeletePersonalAccessToken(ctx context.Context, uuid string) err
 	return c.sendRequest(ctx, "DELETE", fmt.Sprintf("/access-tokens/%s", uuid), nil, nil)
 }
 
+// GetRateLimit returns the current rate limit information
+func (c *Client) GetRateLimit() *RateLimit {
+	return c.rateLimit
+}
+
+// updateRateLimitFromHeaders updates the rate limit information from response headers
+func (c *Client) updateRateLimitFromHeaders(headers http.Header) {
+	limit := headers.Get("X-RateLimit-Limit")
+	remaining := headers.Get("X-RateLimit-Remaining")
+	reset := headers.Get("X-RateLimit-Reset")
+
+	if limit != "" && remaining != "" && reset != "" {
+		limitVal, _ := strconv.Atoi(limit)
+		remainingVal, _ := strconv.Atoi(remaining)
+		resetVal, _ := strconv.ParseInt(reset, 10, 64)
+
+		c.rateLimit = &RateLimit{
+			Limit:     limitVal,
+			Remaining: remainingVal,
+			Reset:     resetVal,
+		}
+	}
+}
+
 // Helpers
 // --------
 func (c *Client) sendRequest(ctx context.Context, method string, url string, body []byte, result interface{}) error {
-
-	authJson, err := json.Marshal(c.auth)
+	// First authenticate to get the token
+	token, err := c.authenticate(ctx)
 	if err != nil {
 		return err
 	}
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/users/login/", c.BaseURL), bytes.NewBuffer(authJson))
+
+	// Prepare the actual request
+	req, err := http.NewRequest(method, fmt.Sprintf("%s%s", c.BaseURL, url), bytes.NewBuffer(body))
 	if err != nil {
 		return err
+	}
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	req.Header.Set("Accept", "application/json; charset=utf-8")
+	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", token))
+
+	req = req.WithContext(ctx)
+
+	// Try the request with potential retries
+	maxRetries := 3
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		res, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return err
+		}
+
+		defer res.Body.Close()
+
+		// Update rate limit information from headers
+		c.updateRateLimitFromHeaders(res.Header)
+
+		// Handle rate limiting
+		if res.StatusCode == http.StatusTooManyRequests {
+			retryAfter := res.Header.Get("X-Retry-After")
+			if retryAfter != "" {
+				retryTime, err := strconv.ParseInt(retryAfter, 10, 64)
+				if err != nil {
+					return err
+				}
+
+				// Check if context is already done
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+
+				// Calculate wait duration
+				waitDuration := time.Until(time.Unix(retryTime, 0))
+				if waitDuration > 0 {
+					timer := time.NewTimer(waitDuration)
+					select {
+					case <-ctx.Done():
+						timer.Stop()
+						return ctx.Err()
+					case <-timer.C:
+						continue // Retry the request
+					}
+				}
+			}
+		}
+
+		if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
+			bodyBytes, err := io.ReadAll(res.Body)
+			if err != nil {
+				return err
+			}
+			return errors.New(string(bodyBytes))
+		}
+
+		if result != nil {
+			if err = json.NewDecoder(res.Body).Decode(result); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return errors.New("max retries exceeded")
+}
+
+// authenticate performs the authentication request and returns the token
+func (c *Client) authenticate(ctx context.Context) (string, error) {
+	authJson, err := json.Marshal(c.auth)
+	if err != nil {
+		return "", err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/users/login/", c.BaseURL), bytes.NewBuffer(authJson))
+	if err != nil {
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept", "application/json; charset=utf-8")
@@ -273,53 +388,22 @@ func (c *Client) sendRequest(ctx context.Context, method string, url string, bod
 
 	res, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
-
 	defer res.Body.Close()
 
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
-		bodyBytes, err := ioutil.ReadAll(res.Body)
+		bodyBytes, err := io.ReadAll(res.Body)
 		if err != nil {
-			return err
+			return "", err
 		}
-		return errors.New(string(bodyBytes))
+		return "", errors.New(string(bodyBytes))
 	}
+
 	token := Token{}
 	if err = json.NewDecoder(res.Body).Decode(&token); err != nil {
-		return err
+		return "", err
 	}
 
-	req, err = http.NewRequest(method, fmt.Sprintf("%s%s", c.BaseURL, url), bytes.NewBuffer(body))
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-	req.Header.Set("Accept", "application/json; charset=utf-8")
-	req.Header.Set("Authorization", fmt.Sprintf("JWT %s", token.Token))
-
-	req = req.WithContext(ctx)
-
-	res, err = c.HTTPClient.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer res.Body.Close()
-
-	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
-		bodyBytes, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			return err
-		}
-		return errors.New(string(bodyBytes))
-	}
-
-	if result != nil {
-		if err = json.NewDecoder(res.Body).Decode(result); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return token.Token, nil
 }
